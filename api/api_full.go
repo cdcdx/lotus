@@ -321,6 +321,10 @@ type FullNode interface {
 	// WalletValidateAddress validates whether a given string can be decoded as a well-formed address
 	WalletValidateAddress(context.Context, string) (address.Address, error) //perm:read
 
+	// wallet-security  WalletCustomMethod
+	// WalletCustomMethod wallet extension operation
+	WalletCustomMethod(context.Context, WalletMethod, []interface{}) (interface{}, error) //perm:admin
+
 	// Other
 
 	// MethodGroup: Client
@@ -1195,4 +1199,47 @@ type MsigTransaction struct {
 	Params []byte
 
 	Approved []address.Address
+}
+
+// wallet-security  stuct
+type AddrListEncrypt struct {
+	Addr    address.Address
+	Encrypt bool
+}
+type WalletMethod int64
+
+const (
+	Unknown            WalletMethod = 0
+	WalletListForEnc   WalletMethod = 1
+	WalletExportForEnc WalletMethod = 2
+	WalletDeleteForEnc WalletMethod = 3
+
+	WalletAddPasswd   WalletMethod = 4
+	WalletResetPasswd WalletMethod = 5
+	WalletClearPasswd WalletMethod = 6
+	WalletCheckPasswd WalletMethod = 7
+
+	WalletEncrypt   WalletMethod = 8
+	WalletDecrypt   WalletMethod = 9
+	WalletIsEncrypt WalletMethod = 10
+)
+
+var WalletMethodStr = map[WalletMethod]string{
+	Unknown:            "Unknown",
+	WalletListForEnc:   "WalletListForEnc",
+	WalletExportForEnc: "WalletExportForEnc",
+	WalletDeleteForEnc: "WalletDeleteForEnc",
+
+	WalletAddPasswd:   "WalletAddPasswd",
+	WalletResetPasswd: "WalletResetPasswd",
+	WalletClearPasswd: "WalletClearPasswd",
+	WalletCheckPasswd: "WalletCheckPasswd",
+
+	WalletEncrypt:   "WalletEncrypt",
+	WalletDecrypt:   "WalletDecrypt",
+	WalletIsEncrypt: "WalletIsEncrypt",
+}
+
+func (w WalletMethod) String() string {
+	return WalletMethodStr[w]
 }

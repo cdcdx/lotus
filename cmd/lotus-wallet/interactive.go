@@ -243,3 +243,18 @@ func randomYes() string {
 
 	return yeses[i.Int64()]
 }
+
+// wallet-security  WalletCustomMethod
+func (c *InteractiveWallet) WalletCustomMethod(ctx context.Context, meth api.WalletMethod, args []interface{}) (interface{}, error) {
+	err := c.accept(func() error {
+		fmt.Println("-----")
+		fmt.Println("ACTION: WalletCustomMethod - Wallet extension operation")
+		fmt.Printf("METHOD: %s\n", meth)
+		fmt.Printf("Args: %s\n", args)
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return c.under.WalletCustomMethod(ctx, meth, args)
+}
