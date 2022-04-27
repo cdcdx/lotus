@@ -57,6 +57,7 @@ require (
 	github.com/filecoin-project/specs-actors/v7 v7.0.0
 	github.com/filecoin-project/specs-storage v0.2.0
 	github.com/filecoin-project/test-vectors/schema v0.0.5
+	github.com/filstar/sector-counter v0.0.0-20220307032840-986c7e1cfef0 // indirect
 	github.com/gbrlsnchs/jwt/v3 v3.0.1
 	github.com/gdamore/tcell/v2 v2.2.0
 	github.com/go-kit/kit v0.12.0

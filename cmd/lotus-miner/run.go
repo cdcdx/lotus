@@ -4,6 +4,7 @@ import (
 	"fmt"
 	_ "net/http/pprof"
 	"os"
+	"path/filepath"
 
 	"github.com/filecoin-project/lotus/api/v1api"
 
@@ -25,6 +26,9 @@ import (
 	"github.com/filecoin-project/lotus/node/config"
 	"github.com/filecoin-project/lotus/node/modules/dtypes"
 	"github.com/filecoin-project/lotus/node/repo"
+
+	// 分布式miner
+	scServer "github.com/filstar/sector-counter/server"
 )
 
 var runCmd = &cli.Command{
@@ -49,8 +53,70 @@ var runCmd = &cli.Command{
 			Usage: "manage open file limit",
 			Value: true,
 		},
+		// 分布式miner
+		&cli.BoolFlag{
+			Name:  "wdpost",
+			Usage: "enable windowPoSt",
+			Value: true,
+		},
+		&cli.BoolFlag{
+			Name:  "wnpost",
+			Usage: "enable winningPoSt",
+			Value: true,
+		},
+		&cli.BoolFlag{
+			Name:  "p2p",
+			Usage: "enable P2P",
+			Value: true,
+		},
+		&cli.StringFlag{
+			Name:  "sctype",
+			Usage: "sector counter type(alloce,get)",
+			Value: "",
+		},
+		&cli.StringFlag{
+			Name:  "sclisten",
+			Usage: "host address and port the sector counter will listen on",
+			Value: "",
+		},
+		&cli.StringFlag{
+			Name:  "workername",
+			Usage: "worker name will display on jobs list",
+			Value: "",
+		},
 	},
 	Action: func(cctx *cli.Context) error {
+		// 分布式miner
+		if cctx.Bool("wdpost") {
+			os.Setenv("LOTUS_WDPOST", "true")
+		} else {
+			os.Unsetenv("LOTUS_WDPOST")
+		}
+		if cctx.Bool("wnpost") {
+			os.Setenv("LOTUS_WNPOST", "true")
+		} else {
+			os.Unsetenv("LOTUS_WNPOST")
+		}
+		scType := cctx.String("sctype")
+		if scType == "alloce" || scType == "get" {
+			os.Setenv("SC_TYPE", scType)
+			scListen := cctx.String("sclisten")
+			if scListen == "" {
+				log.Errorf("sclisten must be set")
+				return nil
+			}
+			os.Setenv("SC_LISTEN", scListen)
+			if scType == "alloce" {
+				scFilePath := filepath.Join(cctx.String(FlagMinerRepo), "sectorid")
+				go scServer.Run(scFilePath)
+			}
+		} else {
+			os.Unsetenv("SC_TYPE")
+		}
+		if cctx.String("workername") != "" {
+			os.Setenv("WORKER_NAME", cctx.String("workername"))
+		}
+
 		if !cctx.Bool("enable-gpu-proving") {
 			err := os.Setenv("BELLMAN_NO_GPU", "true")
 			if err != nil {
@@ -166,14 +232,27 @@ var runCmd = &cli.Command{
 		if bootstrapLibP2P {
 			log.Infof("Bootstrapping libp2p network with full node")
 
-			// Bootstrap with full node
-			remoteAddrs, err := nodeApi.NetAddrsListen(ctx)
-			if err != nil {
-				return xerrors.Errorf("getting full node libp2p address: %w", err)
-			}
-
-			if err := minerapi.NetConnect(ctx, remoteAddrs); err != nil {
-				return xerrors.Errorf("connecting to full node (libp2p): %w", err)
+			// 分布式miner
+			// // Bootstrap with full node
+			// remoteAddrs, err := nodeApi.NetAddrsListen(ctx)
+			// if err != nil {
+			// 	return xerrors.Errorf("getting full node libp2p address: %w", err)
+			// }
+			// if err := minerapi.NetConnect(ctx, remoteAddrs); err != nil {
+			// 	return xerrors.Errorf("connecting to full node (libp2p): %w", err)
+			// }
+			if cctx.Bool("p2p") {
+				// Bootstrap with full node
+				remoteAddrs, err := nodeApi.NetAddrsListen(ctx)
+				if err != nil {
+					return xerrors.Errorf("getting full node libp2p address: %w", err)
+				}
+				// 链接远程全节点地址
+				if err := minerapi.NetConnect(ctx, remoteAddrs); err != nil {
+					return xerrors.Errorf("connecting to full node (libp2p): %w", err)
+				}
+			} else {
+				log.Warnf("This miner will be disable p2p.")
 			}
 		}
 
