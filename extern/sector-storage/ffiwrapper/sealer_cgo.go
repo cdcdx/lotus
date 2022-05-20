@@ -667,6 +667,14 @@ func (sb *Sealer) SealCommit2(ctx context.Context, sector storage.SectorRef, pha
 	return ffi.SealCommitPhase2(phase1Out, sector.ID.Number, sector.ID.Miner)
 }
 
+// yc remotec2 local/remote
+func (sb *Sealer) SealCommit2Local(ctx context.Context, sector storage.SectorRef, phase1Out storage.Commit1Out) (storage.Proof, error) {
+	return ffi.SealCommitPhase2Local(phase1Out, sector.ID.Number, sector.ID.Miner)
+}
+func (sb *Sealer) SealCommit2Remote(ctx context.Context, sector storage.SectorRef, phase1Out storage.Commit1Out) (storage.Proof, error) {
+	return ffi.SealCommitPhase2Remote(phase1Out, sector.ID.Number, sector.ID.Miner)
+}
+
 func (sb *Sealer) ReplicaUpdate(ctx context.Context, sector storage.SectorRef, pieces []abi.PieceInfo) (storage.ReplicaUpdateOut, error) {
 	empty := storage.ReplicaUpdateOut{}
 	paths, done, err := sb.sectors.AcquireSector(ctx, sector, storiface.FTUnsealed|storiface.FTSealed|storiface.FTCache, storiface.FTUpdate|storiface.FTUpdateCache, storiface.PathSealing)

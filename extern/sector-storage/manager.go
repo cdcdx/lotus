@@ -43,6 +43,9 @@ type Worker interface {
 	Session(context.Context) (uuid.UUID, error)
 
 	Close() error // TODO: do we need this?
+
+	// yc remotec2 获取worker是否存在远程C2
+	HasRemoteC2(ctx context.Context) (bool, error)
 }
 
 type SectorManager interface {
@@ -498,7 +501,14 @@ func (m *Manager) SealCommit2(ctx context.Context, sector storage.SectorRef, pha
 	selector := newTaskSelector()
 
 	err = m.sched.Schedule(ctx, sector, sealtasks.TTCommit2, selector, schedNop, func(ctx context.Context, w Worker) error {
-		err := m.startWork(ctx, w, wk)(w.SealCommit2(ctx, sector, phase1Out))
+		//err := m.startWork(ctx, w, wk)(w.SealCommit2(ctx, sector, phase1Out))
+		// yc remotec2 通过 ctx 传入调用的方式
+		remoteC2 := false
+		if ok := ctx.Value("remoteC2"); ok != nil {
+			remoteC2 = ok.(bool)
+		}
+		err := m.startWork(ctx, w, wk)(w.SealCommit2(ctx, sector, phase1Out, remoteC2))
+
 		if err != nil {
 			return err
 		}

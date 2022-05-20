@@ -298,14 +298,26 @@ func (sw *schedWorker) workerCompactWindows() {
 
 			for ti, todo := range window.todo {
 				needRes := worker.info.Resources.ResourceSpec(todo.sector.ProofType, todo.taskType)
-				if !lower.allocated.canHandleRequest(needRes, sw.wid, "compactWindows", worker.info) {
-					continue
+				// if !lower.allocated.canHandleRequest(needRes, sw.wid, "compactWindows", worker.info) {
+				// 	continue
+				// }
+				// yc remotec2  远程C2不增加资源
+				if !todo.isRemoteC2 {
+					if !lower.allocated.canHandleRequest(needRes, sw.wid, "compactWindows", worker.info) {
+						continue
+					}
 				}
 
 				moved = append(moved, ti)
 				lower.todo = append(lower.todo, todo)
-				lower.allocated.add(worker.info.Resources, needRes)
-				window.allocated.free(worker.info.Resources, needRes)
+
+				// lower.allocated.add(worker.info.Resources, needRes)
+				// window.allocated.free(worker.info.Resources, needRes)
+				// yc remotec2  远程C2不增加资源
+				if !todo.isRemoteC2 {
+					lower.allocated.add(worker.info.Resources, needRes)
+					window.allocated.free(worker.info.Resources, needRes)
+				}
 			}
 
 			if len(moved) > 0 {
@@ -460,7 +472,11 @@ func (sw *schedWorker) startProcessingTask(req *workerRequest) error {
 	needRes := w.info.Resources.ResourceSpec(req.sector.ProofType, req.taskType)
 
 	w.lk.Lock()
-	w.preparing.add(w.info.Resources, needRes)
+	// w.preparing.add(w.info.Resources, needRes)
+	// yc remotec2  远程C2不增加资源
+	if !req.isRemoteC2 {
+		w.preparing.add(w.info.Resources, needRes)
+	}
 	w.lk.Unlock()
 
 	go func() {
@@ -471,7 +487,12 @@ func (sw *schedWorker) startProcessingTask(req *workerRequest) error {
 		w.lk.Lock()
 
 		if err != nil {
-			w.preparing.free(w.info.Resources, needRes)
+			// w.preparing.free(w.info.Resources, needRes)
+			// yc remotec2  远程C2不增加资源
+			if !req.isRemoteC2 {
+				w.preparing.free(w.info.Resources, needRes)
+			}
+
 			w.lk.Unlock()
 
 			select {
@@ -500,8 +521,15 @@ func (sw *schedWorker) startProcessingTask(req *workerRequest) error {
 		}()
 
 		// wait (if needed) for resources in the 'active' window
-		err = w.active.withResources(sw.wid, w.info, needRes, &w.lk, func() error {
-			w.preparing.free(w.info.Resources, needRes)
+		// err = w.active.withResources(sw.wid, w.info, needRes, &w.lk, func() error {
+		//	 w.preparing.free(w.info.Resources, needRes)
+		// yc remotec2
+		cb := func() error {
+			// yc remotec2  远程C2不增加资源
+			if !req.isRemoteC2 {
+				w.preparing.free(w.info.Resources, needRes)
+			}
+
 			w.lk.Unlock()
 			defer w.lk.Lock() // we MUST return locked from this function
 
@@ -524,7 +552,14 @@ func (sw *schedWorker) startProcessingTask(req *workerRequest) error {
 			}
 
 			return nil
-		})
+		}
+
+		// yc remotec2  远程C2不增加资源
+		if req.isRemoteC2 {
+			err = cb()
+		} else {
+			err = w.active.withResources(sw.wid, w.info, needRes, &w.lk, cb)
+		}
 
 		w.lk.Unlock()
 
@@ -542,7 +577,11 @@ func (sw *schedWorker) startProcessingReadyTask(req *workerRequest) error {
 
 	needRes := w.info.Resources.ResourceSpec(req.sector.ProofType, req.taskType)
 
-	w.active.add(w.info.Resources, needRes)
+	// w.active.add(w.info.Resources, needRes)
+	// yc remotec2  远程C2不增加资源
+	if !req.isRemoteC2 {
+		w.active.add(w.info.Resources, needRes)
+	}
 
 	go func() {
 		// Do the work!
@@ -560,7 +599,11 @@ func (sw *schedWorker) startProcessingReadyTask(req *workerRequest) error {
 
 		w.lk.Lock()
 
-		w.active.free(w.info.Resources, needRes)
+		// w.active.free(w.info.Resources, needRes)
+		// yc remotec2  远程C2不增加资源
+		if !req.isRemoteC2 {
+			w.active.free(w.info.Resources, needRes)
+		}
 
 		select {
 		case sw.taskDone <- struct{}{}:

@@ -918,7 +918,10 @@ type WorkerStruct struct {
 
 		SealCommit1 func(p0 context.Context, p1 storage.SectorRef, p2 abi.SealRandomness, p3 abi.InteractiveSealRandomness, p4 []abi.PieceInfo, p5 storage.SectorCids) (storiface.CallID, error) `perm:"admin"`
 
-		SealCommit2 func(p0 context.Context, p1 storage.SectorRef, p2 storage.Commit1Out) (storiface.CallID, error) `perm:"admin"`
+		SealCommit2 func(p0 context.Context, p1 storage.SectorRef, p2 storage.Commit1Out, remoteC2 bool) (storiface.CallID, error) `perm:"admin"`
+
+		// yc remotec2 获取worker是否存在远程C2
+		HasRemoteC2 func(p0 context.Context) (bool, error) `perm:"admin"`
 
 		SealPreCommit1 func(p0 context.Context, p1 storage.SectorRef, p2 abi.SealRandomness, p3 []abi.PieceInfo) (storiface.CallID, error) `perm:"admin"`
 
@@ -5281,15 +5284,27 @@ func (s *WorkerStub) SealCommit1(p0 context.Context, p1 storage.SectorRef, p2 ab
 	return *new(storiface.CallID), ErrNotSupported
 }
 
-func (s *WorkerStruct) SealCommit2(p0 context.Context, p1 storage.SectorRef, p2 storage.Commit1Out) (storiface.CallID, error) {
+// yc remotec2 local/remote
+func (s *WorkerStruct) SealCommit2(p0 context.Context, p1 storage.SectorRef, p2 storage.Commit1Out, remoteC2 bool) (storiface.CallID, error) {
 	if s.Internal.SealCommit2 == nil {
 		return *new(storiface.CallID), ErrNotSupported
 	}
-	return s.Internal.SealCommit2(p0, p1, p2)
+	return s.Internal.SealCommit2(p0, p1, p2, remoteC2)
 }
 
-func (s *WorkerStub) SealCommit2(p0 context.Context, p1 storage.SectorRef, p2 storage.Commit1Out) (storiface.CallID, error) {
+func (s *WorkerStub) SealCommit2(p0 context.Context, p1 storage.SectorRef, p2 storage.Commit1Out, remoteC2 bool) (storiface.CallID, error) {
 	return *new(storiface.CallID), ErrNotSupported
+}
+
+// yc remotec2 获取worker是否存在远程C2
+func (s *WorkerStruct) HasRemoteC2(p0 context.Context) (bool, error) {
+	if s.Internal.HasRemoteC2 == nil {
+		return false, ErrNotSupported
+	}
+	return s.Internal.HasRemoteC2(p0)
+}
+func (s *WorkerStub) HasRemoteC2(p0 context.Context) (bool, error) {
+	return false, ErrNotSupported
 }
 
 func (s *WorkerStruct) SealPreCommit1(p0 context.Context, p1 storage.SectorRef, p2 abi.SealRandomness, p3 []abi.PieceInfo) (storiface.CallID, error) {

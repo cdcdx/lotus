@@ -31,6 +31,10 @@ type Storage interface {
 
 	UnsealPiece(ctx context.Context, sector storage.SectorRef, offset storiface.UnpaddedByteIndex, size abi.UnpaddedPieceSize, randomness abi.SealRandomness, commd cid.Cid) error
 	ReadPiece(ctx context.Context, writer io.Writer, sector storage.SectorRef, offset storiface.UnpaddedByteIndex, size abi.UnpaddedPieceSize) (bool, error)
+
+	// yc remotec2 local/remote
+	SealCommit2Local(ctx context.Context, sector storage.SectorRef, phase1Out storage.Commit1Out) (storage.Proof, error)
+	SealCommit2Remote(ctx context.Context, sector storage.SectorRef, phase1Out storage.Commit1Out) (storage.Proof, error)
 }
 
 type Verifier interface {

@@ -137,6 +137,9 @@ type workerRequest struct {
 	indexHeap int
 	ret       chan<- workerResponse
 	ctx       context.Context
+
+	// yc remotec2 isRemoteC2
+	isRemoteC2 bool
 }
 
 type workerResponse struct {
@@ -170,6 +173,12 @@ func newScheduler() *scheduler {
 func (sh *scheduler) Schedule(ctx context.Context, sector storage.SectorRef, taskType sealtasks.TaskType, sel WorkerSelector, prepare WorkerAction, work WorkerAction) error {
 	ret := make(chan workerResponse)
 
+	// yc remotec2 通过 ctx 传入调用的方式
+	isRemoteC2 := false
+	if ok := ctx.Value("remoteC2"); ok != nil {
+		isRemoteC2 = ok.(bool)
+	}
+
 	select {
 	case sh.schedule <- &workerRequest{
 		sector:   sector,
@@ -184,6 +193,9 @@ func (sh *scheduler) Schedule(ctx context.Context, sector storage.SectorRef, tas
 
 		ret: ret,
 		ctx: ctx,
+
+		// yc init
+		isRemoteC2: isRemoteC2,
 	}:
 	case <-sh.closing:
 		return xerrors.New("closing")
@@ -395,9 +407,29 @@ func (sh *scheduler) trySched() {
 
 				needRes := worker.info.Resources.ResourceSpec(task.sector.ProofType, task.taskType)
 
-				// TODO: allow bigger windows
-				if !windows[wnd].allocated.canHandleRequest(needRes, windowRequest.worker, "schedAcceptable", worker.info) {
-					continue
+				// // TODO: allow bigger windows
+				// if !windows[wnd].allocated.canHandleRequest(needRes, windowRequest.worker, "schedAcceptable", worker.info) {
+				// 	continue
+				// }
+				// yc remotec2  获取worker是否存在远程C2
+				if task.isRemoteC2 {
+					log.Debugf("Step 1 this task is remoteC2, sectorId: %v", task.sector.ID.Number)
+					rpcCtx, cancel := context.WithTimeout(task.ctx, SelectorTimeout)
+					ok, err := worker.workerRpc.HasRemoteC2(rpcCtx)
+					cancel()
+					if err != nil {
+						log.Errorf("trySched(1) req.HasRemoteC2 error: %+v", err)
+						continue
+					}
+					if !ok {
+						log.Warnf("trySched(1) req.HasRemoteC2 dont exist %+v", worker.info.Hostname)
+						continue
+					}
+				} else {
+					// TODO: allow bigger windows
+					if !windows[wnd].allocated.canHandleRequest(needRes, windowRequest.worker, "schedAcceptable", worker.info) {
+						continue
+					}
 				}
 
 				rpcCtx, cancel := context.WithTimeout(task.ctx, SelectorTimeout)
@@ -468,14 +500,25 @@ func (sh *scheduler) trySched() {
 
 			needRes := info.Resources.ResourceSpec(task.sector.ProofType, task.taskType)
 
-			// TODO: allow bigger windows
-			if !windows[wnd].allocated.canHandleRequest(needRes, wid, "schedAssign", info) {
-				continue
+			// // TODO: allow bigger windows
+			// if !windows[wnd].allocated.canHandleRequest(needRes, wid, "schedAssign", info) {
+			// 	continue
+			// }
+			// yc remotec2  远程C2不检查资源
+			if !task.isRemoteC2 {
+				// TODO: allow bigger windows
+				if !windows[wnd].allocated.canHandleRequest(needRes, wid, "schedAssign", info) {
+					continue
+				}
 			}
 
 			log.Debugf("SCHED ASSIGNED sqi:%d sector %d task %s to window %d", sqi, task.sector.ID.Number, task.taskType, wnd)
 
-			windows[wnd].allocated.add(info.Resources, needRes)
+			// windows[wnd].allocated.add(info.Resources, needRes)
+			// yc remotec2  远程C2不检查资源
+			if !task.isRemoteC2 {
+				windows[wnd].allocated.add(info.Resources, needRes)
+			}
 			// TODO: We probably want to re-sort acceptableWindows here based on new
 			//  workerHandle.utilization + windows[wnd].allocated.utilization (workerHandle.utilization is used in all
 			//  task selectors, but not in the same way, so need to figure out how to do that in a non-O(n^2 way), and
@@ -486,6 +529,13 @@ func (sh *scheduler) trySched() {
 		}
 
 		if selectedWindow < 0 {
+			// // yc remotec2 远程C2不可用, 直接返回错误, 并处理在队列中的的任务
+			// if task.isRemoteC2 {
+			// 	rmQueue = append(rmQueue, sqi)
+			// 	log.Infof("sectorID:[%+v] error: allocate remotec2 failed, because there`s none remotec2", task.sector.ID)
+			// 	go task.respond(xerrors.Errorf("allocate remotec2 failed, because there`s none remotec2"))
+			// }
+
 			// all windows full
 			continue
 		}

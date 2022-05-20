@@ -1,6 +1,7 @@
 package sectorstorage
 
 import (
+	"context"
 	"time"
 
 	"github.com/google/uuid"
@@ -14,7 +15,19 @@ func (m *Manager) WorkerStats() map[uuid.UUID]storiface.WorkerStats {
 
 	out := map[uuid.UUID]storiface.WorkerStats{}
 
+	// yc remotec2  最多提供2倍的时间
+	rpcCtx, cancel := context.WithTimeout(context.TODO(), SelectorTimeout*2)
+	defer cancel()
+
 	for id, handle := range m.sched.workers {
+		// yc remotec2 获取worker是否存在远程C2
+		hasRemoteC2 := false
+		if ok, err := handle.workerRpc.HasRemoteC2(rpcCtx); ok {
+			hasRemoteC2 = true
+		} else if err != nil {
+			log.Errorf("get remoteC2 work info err %v:", err)
+		}
+
 		handle.lk.Lock()
 		out[uuid.UUID(id)] = storiface.WorkerStats{
 			Info:    handle.info,
@@ -24,6 +37,9 @@ func (m *Manager) WorkerStats() map[uuid.UUID]storiface.WorkerStats {
 			MemUsedMax: handle.active.memUsedMax,
 			GpuUsed:    handle.active.gpuUsed,
 			CpuUse:     handle.active.cpuUse,
+
+			// yc remotec2 获取worker是否存在远程C2
+			RemoteC2: hasRemoteC2,
 		}
 		handle.lk.Unlock()
 	}

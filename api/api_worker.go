@@ -37,7 +37,7 @@ type Worker interface {
 	SealPreCommit1(ctx context.Context, sector storage.SectorRef, ticket abi.SealRandomness, pieces []abi.PieceInfo) (storiface.CallID, error)                                                           //perm:admin
 	SealPreCommit2(ctx context.Context, sector storage.SectorRef, pc1o storage.PreCommit1Out) (storiface.CallID, error)                                                                                  //perm:admin
 	SealCommit1(ctx context.Context, sector storage.SectorRef, ticket abi.SealRandomness, seed abi.InteractiveSealRandomness, pieces []abi.PieceInfo, cids storage.SectorCids) (storiface.CallID, error) //perm:admin
-	SealCommit2(ctx context.Context, sector storage.SectorRef, c1o storage.Commit1Out) (storiface.CallID, error)                                                                                         //perm:admin
+	SealCommit2(ctx context.Context, sector storage.SectorRef, c1o storage.Commit1Out, remoteC2 bool) (storiface.CallID, error)                                                                          //perm:admin
 	FinalizeSector(ctx context.Context, sector storage.SectorRef, keepUnsealed []storage.Range) (storiface.CallID, error)                                                                                //perm:admin
 	FinalizeReplicaUpdate(ctx context.Context, sector storage.SectorRef, keepUnsealed []storage.Range) (storiface.CallID, error)                                                                         //perm:admin
 	ReplicaUpdate(ctx context.Context, sector storage.SectorRef, pieces []abi.PieceInfo) (storiface.CallID, error)                                                                                       //perm:admin
@@ -72,6 +72,9 @@ type Worker interface {
 
 	// Like ProcessSession, but returns an error when worker is disabled
 	Session(context.Context) (uuid.UUID, error) //perm:admin
+
+	// yc remotec2 获取worker是否存在远程C2
+	HasRemoteC2(ctx context.Context) (bool, error) //perm:admin
 }
 
 var _ storiface.WorkerCalls = *new(Worker)

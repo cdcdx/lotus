@@ -56,4 +56,9 @@ func (r *remoteWorker) Close() error {
 	return nil
 }
 
+// yc remotec2 获取worker是否存在远程C2
+func (r *remoteWorker) HasRemoteC2(ctx context.Context) (bool, error) {
+	return r.Worker.HasRemoteC2(ctx)
+}
+
 var _ sectorstorage.Worker = &remoteWorker{}

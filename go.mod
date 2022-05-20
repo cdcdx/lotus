@@ -172,6 +172,7 @@ require (
 	gotest.tools v2.2.0+incompatible
 )
 
-replace github.com/filecoin-project/filecoin-ffi => ./extern/filecoin-ffi
+// yc local filecoin-ffi
+replace github.com/filecoin-project/filecoin-ffi => ../filecoin-ffi
 
 replace github.com/filecoin-project/test-vectors => ./extern/test-vectors

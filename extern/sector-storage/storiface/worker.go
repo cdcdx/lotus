@@ -73,6 +73,9 @@ type WorkerStats struct {
 	MemUsedMax uint64
 	GpuUsed    float64 // nolint
 	CpuUse     uint64  // nolint
+
+	// yc remotec2 判断localC2 还是remoteC2
+	RemoteC2 bool
 }
 
 const (
@@ -118,7 +121,7 @@ type WorkerCalls interface {
 	SealPreCommit1(ctx context.Context, sector storage.SectorRef, ticket abi.SealRandomness, pieces []abi.PieceInfo) (CallID, error)
 	SealPreCommit2(ctx context.Context, sector storage.SectorRef, pc1o storage.PreCommit1Out) (CallID, error)
 	SealCommit1(ctx context.Context, sector storage.SectorRef, ticket abi.SealRandomness, seed abi.InteractiveSealRandomness, pieces []abi.PieceInfo, cids storage.SectorCids) (CallID, error)
-	SealCommit2(ctx context.Context, sector storage.SectorRef, c1o storage.Commit1Out) (CallID, error)
+	SealCommit2(ctx context.Context, sector storage.SectorRef, c1o storage.Commit1Out, remoteC2 bool) (CallID, error)
 	FinalizeSector(ctx context.Context, sector storage.SectorRef, keepUnsealed []storage.Range) (CallID, error)
 	FinalizeReplicaUpdate(ctx context.Context, sector storage.SectorRef, keepUnsealed []storage.Range) (CallID, error)
 	ReleaseUnsealed(ctx context.Context, sector storage.SectorRef, safeToFree []storage.Range) (CallID, error)

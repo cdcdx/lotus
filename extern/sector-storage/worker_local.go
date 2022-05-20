@@ -396,15 +396,34 @@ func (l *LocalWorker) SealCommit1(ctx context.Context, sector storage.SectorRef,
 	})
 }
 
-func (l *LocalWorker) SealCommit2(ctx context.Context, sector storage.SectorRef, phase1Out storage.Commit1Out) (storiface.CallID, error) {
+// yc remotec2 local/remote
+func (l *LocalWorker) SealCommit2(ctx context.Context, sector storage.SectorRef, phase1Out storage.Commit1Out, remoteC2 bool) (storiface.CallID, error) {
 	sb, err := l.executor()
 	if err != nil {
 		return storiface.UndefCall, err
 	}
 
 	return l.asyncCall(ctx, sector, SealCommit2, func(ctx context.Context, ci storiface.CallID) (interface{}, error) {
-		return sb.SealCommit2(ctx, sector, phase1Out)
+		// return sb.SealCommit2(ctx, sector, phase1Out)
+		// yc remotec2 判断localC2 还是remoteC2
+		if remoteC2 {
+			log.Debugf("SCHED LocalWorker sectorID:[%v] is remoteC2 ...", sector.ID.Number)
+			return sb.SealCommit2Remote(ctx, sector, phase1Out)
+		} else {
+			log.Debugf("SCHED LocalWorker sectorID:[%v] is localC2 ...", sector.ID.Number)
+			return sb.SealCommit2Local(ctx, sector, phase1Out)
+		}
 	})
+}
+
+// yc remotec2 获取worker是否存在远程C2
+func (l *LocalWorker) HasRemoteC2(ctx context.Context) (bool, error) {
+	remoteC2Url, isRemoteC2 := os.LookupEnv("YC_REMOTE_COMMIT2_BASE_URL")
+	if isRemoteC2 && remoteC2Url != "" {
+		log.Debugf("HasRemoteC2 isRemoteC2:%v, remoteC2Url:%v", isRemoteC2, remoteC2Url)
+		return true, nil
+	}
+	return false, nil
 }
 
 func (l *LocalWorker) ReplicaUpdate(ctx context.Context, sector storage.SectorRef, pieces []abi.PieceInfo) (storiface.CallID, error) {
